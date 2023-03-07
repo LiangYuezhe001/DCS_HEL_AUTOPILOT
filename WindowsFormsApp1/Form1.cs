@@ -17,15 +17,35 @@ namespace WindowsFormsApp1
 {
     public partial class Form1 : Form
     {
+        class XYZ
+        {
+            public double x;   
+            public double y;  
+            public double z;  
+        }
+
+        XYZ VectorVelocity, body_VectorVelocity, old_body_VectorVelocity,cam;
+
+        class OD
+        {
+            public double old;
+            public double old_differential;
+            public double differential;
+            public double origin;
+        }
+        OD VerticalVelocity,TAS;
+
         static Socket server_r;
         //接收socket
-        static float currentSimTime, TAS;
-        static double simtime, vvx, vvy, vvz, MAGyaw, altBar, altRad, bvx, bvy, obvx, obvy, oVerticalVelocity, odVerticalVelocity, dVerticalVelocity,
-            VerticalVelocity, pitch, bank, yaw, SBP, lRPM, rRPM, oTAS, dTAS, odTAS,camx,camy,camz, visyaw,magdiff;
+        static float currentSimTime;
+        static double simtime, MAGyaw, altBar, altRad, pitch, bank, yaw, SBP, lRPM, rRPM, visyaw;
+
         static int flag_puase = 0, flag_hide = 0, flag_blind = 0,flag_timeout=0,color_state=1;
+
         static string dis_yaw, dis_visyaw;
         static int pix_bvx, pix_bvy;
         static int mywidth, myheight;
+
         static int pic_size = 500;
        
         KeyboardHook kh;
@@ -375,11 +395,11 @@ namespace WindowsFormsApp1
                 }
                 else if (head == "va")
                 {
-                    TAS = float.Parse(body);
-                    TAS = TAS * (float)3.6;
-                    dTAS = (TAS - oTAS) * filter_par + odTAS * (1 - filter_par);
-                    odTAS = dTAS;
-                    oTAS = TAS;
+                    TAS.origin = float.Parse(body);
+                    TAS.origin = TAS.origin * (float)3.6;
+                    TAS.differential = (TAS.origin - TAS.old) * filter_par + TAS.old_differential * (1 - filter_par);
+                    TAS.old_differential = TAS.differential;
+                    TAS.old = TAS.origin;
 
 
                 }
@@ -395,23 +415,23 @@ namespace WindowsFormsApp1
                         string[] STData = rawData[0].Split(',');
 
                         simtime = double.Parse(STData[0]);
-                        vvx = double.Parse(STData[1]);
-                        vvy = double.Parse(STData[2]);
-                        vvz = double.Parse(STData[3]);
+                        VectorVelocity.x = double.Parse(STData[1]);
+                        VectorVelocity.y = double.Parse(STData[2]);
+                        VectorVelocity.z = double.Parse(STData[3]);
                         MAGyaw = double.Parse(STData[4]);
                         altBar = double.Parse(STData[5]);
                         altRad = double.Parse(STData[6]);
-                        VerticalVelocity = double.Parse(STData[7]);
-                        dVerticalVelocity = (VerticalVelocity - oVerticalVelocity)* filter_par+odVerticalVelocity*(1- filter_par);
-                        odVerticalVelocity = dVerticalVelocity;
-                        oVerticalVelocity = VerticalVelocity;
+                        VerticalVelocity.origin = double.Parse(STData[7]);
+                        VerticalVelocity.differential = (VerticalVelocity.origin - VerticalVelocity.old)* filter_par+VerticalVelocity.old_differential * (1- filter_par);
+                        VerticalVelocity.old_differential = VerticalVelocity.differential;
+                        VerticalVelocity.old = VerticalVelocity.origin;
                         pitch = double.Parse(STData[8]);
                         bank = double.Parse(STData[9]);
                         yaw = double.Parse(STData[10]);
                         lRPM = double.Parse(STData[11]);
                         rRPM = double.Parse(STData[12]);
-                        camx= double.Parse(STData[13]);
-                        camz = double.Parse(STData[15]);
+                        cam.x= double.Parse(STData[13]);
+                        cam.z = double.Parse(STData[15]);
                      
 
                     }
@@ -504,15 +524,15 @@ namespace WindowsFormsApp1
             int gap, pos, num = 30;
             int gradations_yaw;
            // magdiff = MAGyaw - yaw;
-            if (camz >= 0)
+            if (cam.z >= 0)
             {
-                visyaw = (camx + 1) * 90 + 180 ;
+                visyaw = (cam.x + 1) * 90 + 180 ;
                 dis_visyaw = string.Format("{0:d3}", (int)visyaw);
                 
             }
             else
             {
-                visyaw = -(camx + 1) * 90 + 180 ;
+                visyaw = -(cam.x + 1) * 90 + 180 ;
                 dis_visyaw = string.Format("{0:d3}", (int)visyaw);
             }
 
@@ -552,22 +572,22 @@ namespace WindowsFormsApp1
 
         private void draw_vectorspeed_indicator()
         {
-            bvx = (vvx * Math.Cos(yaw) + vvz * Math.Sin(yaw)) * 0.5 + obvx * 0.5;
-            bvy = (-vvx * Math.Sin(yaw) + vvz * Math.Cos(yaw)) * 0.5 + obvy * 0.5;
-            obvx = bvx;
-            obvy = bvy;
-            if (TAS <= 25)
+            body_VectorVelocity.x = (VectorVelocity.x * Math.Cos(yaw) + VectorVelocity.z * Math.Sin(yaw)) * 0.5 + old_body_VectorVelocity.x * 0.5;
+            body_VectorVelocity.y = (-VectorVelocity.x * Math.Sin(yaw) + VectorVelocity.z * Math.Cos(yaw)) * 0.5 + old_body_VectorVelocity.y * 0.5;
+            old_body_VectorVelocity.x = body_VectorVelocity.x;
+            old_body_VectorVelocity.y = body_VectorVelocity.y;
+            if (TAS.origin <= 25)
             {
-                pix_bvx = (int)(bvx * 20);
-                pix_bvy = (int)(bvy * 20);
+                pix_bvx = (int)(body_VectorVelocity.x * 20);
+                pix_bvy = (int)(body_VectorVelocity.y * 20);
             }
             else
             {
-                pix_bvx = (int)(bvx * 10);
-                pix_bvy = (int)(bvy * 10);
+                pix_bvx = (int)(body_VectorVelocity.x * 10);
+                pix_bvy = (int)(body_VectorVelocity.y * 10);
             }
 
-            if (TAS <= 50)
+            if (TAS.origin <= 50)
             {
                 g.DrawLine(p, new Point(250, 250), new Point(250 + pix_bvy, 250 - pix_bvx));
 
@@ -577,30 +597,30 @@ namespace WindowsFormsApp1
 
         private void tas_indicator()
         {
-            g.DrawString(Convert.ToString((int)TAS), Mid_Font, drawBrush, 66, 74);//空速显示
-            g.DrawLine(p2, new Point(85, 250), new Point(85, 250 - (int)(Math.Atan(dTAS * 30)/Math.PI*300)));
+            g.DrawString(Convert.ToString((int)TAS.origin), Mid_Font, drawBrush, 66, 74);//空速显示
+            g.DrawLine(p2, new Point(85, 250), new Point(85, 250 - (int)(Math.Atan(TAS.differential * 30)/Math.PI*300)));
 
 
-            if (TAS <= 50)
+            if (TAS.origin <= 50)
             {
                 g.DrawRectangle(p, 70, 100, 10, 300);
                 p2.Width = 10;
-                g.DrawLine(p2, new Point(75, 400), new Point(75, 400 - (int)(TAS * 6)));
+                g.DrawLine(p2, new Point(75, 400), new Point(75, 400 - (int)(TAS.origin * 6)));
                 g.DrawString("50", Small_Font, drawBrush, 40, 100);
 
             }
-            else if (TAS >= 50 && TAS <= 300)
+            else if (TAS.origin >= 50 && TAS.origin <= 300)
             {
                 g.DrawRectangle(p, 70, 100, 10, 300);
                 p2.Width = 10;
-                g.DrawLine(p2, new Point(75, 400), new Point(75, 400 - (int)(TAS)));
+                g.DrawLine(p2, new Point(75, 400), new Point(75, 400 - (int)(TAS.origin)));
                 g.DrawString("300", Small_Font, drawBrush, 30, 100);
             }
             else
             {
                 g.DrawRectangle(p, 70, 100, 10, 300);
                 p2.Width = 10;
-                g.DrawLine(p2, new Point(75, 400), new Point(75, 400 - (int)(TAS*0.6)));
+                g.DrawLine(p2, new Point(75, 400), new Point(75, 400 - (int)(TAS.origin*0.6)));
                 g.DrawString("500", Small_Font, drawBrush, 30, 100);
 
             }
@@ -629,37 +649,37 @@ namespace WindowsFormsApp1
             g.DrawLine(p, new Point(a, 350), new Point(a + 30, 350));
             g.DrawLine(p, new Point(a, 400), new Point(a + 30, 400));
             
-            if (Math.Abs(VerticalVelocity) <= 5)
+            if (Math.Abs(VerticalVelocity.origin) <= 5)
             {
-                dis_VerticalVelocity = (int)(VerticalVelocity * 20);
+                dis_VerticalVelocity = (int)(VerticalVelocity.origin * 20);
                 g.DrawLine(p, new Point(398, 244 - dis_VerticalVelocity), new Point(398, 256 - dis_VerticalVelocity));
                 g.DrawLine(p, new Point(398, 244 - dis_VerticalVelocity), new Point(410, 250 - dis_VerticalVelocity));
                 g.DrawLine(p, new Point(398, 256 - dis_VerticalVelocity), new Point(410, 250 - dis_VerticalVelocity));
-                g.DrawString(string.Format("{0:d2}", (int)Math.Abs(VerticalVelocity)), Small_Font, drawBrush,
+                g.DrawString(string.Format("{0:d2}", (int)Math.Abs(VerticalVelocity.origin)), Small_Font, drawBrush,
                     372, 242 - dis_VerticalVelocity);
             }
             else
             {
-                if (VerticalVelocity > 0)
+                if (VerticalVelocity.origin > 0)
                 {
-                    dis_VerticalVelocity = (int)(Math.Atan(VerticalVelocity - 5) / Math.PI * 100 + 100);
+                    dis_VerticalVelocity = (int)(Math.Atan(VerticalVelocity.origin - 5) / Math.PI * 100 + 100);
                     g.DrawLine(p, new Point(398, 244 - dis_VerticalVelocity), new Point(398, 256 - dis_VerticalVelocity));
                     g.DrawLine(p, new Point(398, 244 - dis_VerticalVelocity), new Point(410, 250 - dis_VerticalVelocity));
                     g.DrawLine(p, new Point(398, 256 - dis_VerticalVelocity), new Point(410, 250 - dis_VerticalVelocity));
-                    g.DrawString(string.Format("{0:d2}", (int)Math.Abs(VerticalVelocity)), Small_Font, drawBrush,
+                    g.DrawString(string.Format("{0:d2}", (int)Math.Abs(VerticalVelocity.origin)), Small_Font, drawBrush,
                       372, 242 - dis_VerticalVelocity);
                 }
                 else
                 {
-                    dis_VerticalVelocity = (int)(Math.Atan(VerticalVelocity + 5) / Math.PI * 100 - 100);
+                    dis_VerticalVelocity = (int)(Math.Atan(VerticalVelocity.origin + 5) / Math.PI * 100 - 100);
                     g.DrawLine(p, new Point(398, 244 - dis_VerticalVelocity), new Point(398, 256 - dis_VerticalVelocity));
                     g.DrawLine(p, new Point(398, 244 - dis_VerticalVelocity), new Point(410, 250 - dis_VerticalVelocity));
                     g.DrawLine(p, new Point(398, 256 - dis_VerticalVelocity), new Point(410, 250 - dis_VerticalVelocity));
-                    g.DrawString(string.Format("{0:d2}", (int)Math.Abs(VerticalVelocity)), Small_Font, drawBrush,
+                    g.DrawString(string.Format("{0:d2}", (int)Math.Abs(VerticalVelocity.origin)), Small_Font, drawBrush,
                     372, 242 - dis_VerticalVelocity);
                 }
             }
-            g.DrawLine(p2, new Point(435, 250), new Point(435, 250 - (int)(Math.Atan(dVerticalVelocity * 100)/Math.PI*300)));
+            g.DrawLine(p2, new Point(435, 250), new Point(435, 250 - (int)(Math.Atan(VerticalVelocity.differential * 100)/Math.PI*300)));
 
             if (altRad <= 50)
             {
@@ -716,13 +736,13 @@ namespace WindowsFormsApp1
 
             //CTB = 0;
             //STB = 0;
-            if (TAS >= 25 && TAS <= 60)
+            if (TAS.origin >= 25 && TAS.origin <= 60)
             {
                 g.DrawLine(dash_pen, new Point((int)(mid - LCB), (int)(mid + LSB) + acc),
                     new Point((int)(mid + LCB), (int)(mid - LSB) + acc));
 
             }
-            if (TAS > 60)
+            if (TAS.origin > 60)
             {
                 SSB = short_line * SB;
                 SCB = short_line * CB;
@@ -753,13 +773,13 @@ namespace WindowsFormsApp1
             g.DrawLine(p, new Point(67, 400), new Point(67, 400 - (int)((lRPM - 70) * 10)));
             ///////////////////////////////////////////////////////////
             ///////////////////SBP////////////////////////
-            if (TAS < 1)
+            if (TAS.origin < 1)
             {
                 SBP = 0;
             }
             else
             {
-                SBP = Math.Sin(Math.Atan2(obvy, obvx));
+                SBP = Math.Sin(Math.Atan2(old_body_VectorVelocity.y, old_body_VectorVelocity.x));
             }
             g.DrawLine(p, new Point(150, 450), new Point(350, 450));
             g.DrawRectangle(p, 235, 430, 20, 20);
@@ -770,7 +790,7 @@ namespace WindowsFormsApp1
             g.DrawString(Convert.ToString((int)currentSimTime), Small_Font, drawBrush, new PointF(410, 410));
             /////////////////////////////////////
             ///VRS WARNINg
-            if (TAS <= 60 && VerticalVelocity <= -4)
+            if (TAS.origin <= 60 && VerticalVelocity.origin <= -4)
             {
                 g.DrawString("VRS", new Font("Microsoft YaHei UI", 34), drawBrush, 200, 150);
               //  g.DrawRectangle(p, 200, 154, 100, 35);
@@ -782,6 +802,7 @@ namespace WindowsFormsApp1
             p.Width = 2;
             dash_pen.Width = 3;
             g.Clear(Color.White);
+
             draw_magyaw_indicator();
             draw_vectorspeed_indicator();
             tas_indicator();
@@ -903,96 +924,13 @@ namespace WindowsFormsApp1
         private void From1_paint(object sender, PaintEventArgs e)
         {
 
+
         }
 
         private void b1click(object sender, EventArgs e)
         {
 
-            ////接受网络设置
-            //server_r = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
-            //server_r.Bind(new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345));//绑定端口号和IP  
-            //server_r.ReceiveTimeout = 1000000;
-            //server_r.SendTimeout = 1000000;
-            //EndPoint point2 = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 12345);
-            //timer1.Start();
-            //button1.BackColor = Color.White;
-            //button1.Enabled = false;
-
-
-
-
-            //while (true)
-            //{
-
-
-            //    //接受
-            //    byte[] buffer = new byte[10240];
-            //    int length = server_r.ReceiveFrom(buffer, ref point2);//接收数据报  
-            //    string message = Encoding.UTF8.GetString(buffer, 0, length);
-            //    if (message == "quit") { break; }
-
-            //    string head = message.Substring(0, 2);
-            //    string body = message.Substring(2);
-
-
-
-            //    if (head == "tm")
-            //    {
-            //        currentSimTime = float.Parse(body);
-
-            //    }
-            //    else if (head == "va")
-            //    {
-            //        TAS = float.Parse(body);
-            //        TAS = TAS * (float)3.6;
-
-
-            //    }
-            //    else
-            //    {
-
-            //        if (head == "ms")
-            //        {
-
-
-
-            //            string[] rawData = body.Split(';');
-            //            string[] STData = rawData[0].Split(',');
-
-            //            simtime = double.Parse(STData[0]);
-            //            vvx = double.Parse(STData[1]);
-            //            vvy = double.Parse(STData[2]);
-            //            vvz = double.Parse(STData[3]);
-            //            MAGyaw = double.Parse(STData[4]);
-            //            altBar = double.Parse(STData[5]);
-            //            altRad = double.Parse(STData[6]);
-            //            VerticalVelocity = double.Parse(STData[7]);
-            //            dVerticalVelocity = VerticalVelocity - oVerticalVelocity;
-            //            oVerticalVelocity = VerticalVelocity;
-            //            pitch = double.Parse(STData[8]);
-            //            bank = double.Parse(STData[9]);
-            //            yaw = double.Parse(STData[10]);
-            //            lRPM = double.Parse(STData[11]);
-            //            rRPM = double.Parse(STData[12]);
-            //            bvx = (vvx * Math.Cos(yaw) + vvz * Math.Sin(yaw)) * 0.5 + obvx * 0.5;
-            //            bvy = (-vvx * Math.Sin(yaw) + vvz * Math.Cos(yaw)) * 0.5 + obvy * 0.5;
-            //            obvx = bvx;
-            //            obvy = bvy;
-            //            SBP = Math.Sin(Math.Atan2(obvy, obvx));
-            //            dis_yaw = Convert.ToString((int)(MAGyaw / Math.PI * 180));
-            //            //gradations_yaw = -(int)(((MAGyaw / Math.PI * 90) % 10) * 10);
-            //        }
-            //    }
-
-
-
-
-
-            //    Application.DoEvents();
-
-
-
-            //}
+            
         }
 
 
