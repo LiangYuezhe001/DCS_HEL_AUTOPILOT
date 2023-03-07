@@ -12,6 +12,7 @@ using System.Runtime.InteropServices;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing.Drawing2D;
+using System.IO;
 
 namespace WindowsFormsApp1
 {
@@ -24,7 +25,7 @@ namespace WindowsFormsApp1
             public double z;  
         }
 
-        XYZ VectorVelocity, body_VectorVelocity, old_body_VectorVelocity,cam;
+        XYZ VectorVelocity, body_VectorVelocity, old_body_VectorVelocity,cam, AngularVelocity;
 
         class OD
         {
@@ -32,8 +33,16 @@ namespace WindowsFormsApp1
             public double old_differential;
             public double differential;
             public double origin;
+            public void diff_filter(double filter_par)
+            {
+                differential = ( origin -  old) * filter_par +  old_differential * (1 - filter_par);
+                 old_differential =  differential;
+                 old =  origin;
+            }
         }
+
         OD VerticalVelocity,TAS;
+
 
         static Socket server_r;
         //接收socket
@@ -47,7 +56,9 @@ namespace WindowsFormsApp1
         static int mywidth, myheight;
 
         static int pic_size = 500;
-       
+
+        FileStream data_file = new FileStream("data.txt", FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
+
         KeyboardHook kh;
 
         static Color color_all = Color.DarkSalmon;  
@@ -395,11 +406,12 @@ namespace WindowsFormsApp1
                 }
                 else if (head == "va")
                 {
-                    TAS.origin = float.Parse(body);
+                    TAS.origin = double.Parse(body);
                     TAS.origin = TAS.origin * (float)3.6;
-                    TAS.differential = (TAS.origin - TAS.old) * filter_par + TAS.old_differential * (1 - filter_par);
-                    TAS.old_differential = TAS.differential;
-                    TAS.old = TAS.origin;
+                    TAS.diff_filter(filter_par);
+                    //TAS.differential = (TAS.origin - TAS.old) * filter_par + TAS.old_differential * (1 - filter_par);
+                    //TAS.old_differential = TAS.differential;
+                    //TAS.old = TAS.origin;
 
 
                 }
@@ -422,9 +434,10 @@ namespace WindowsFormsApp1
                         altBar = double.Parse(STData[5]);
                         altRad = double.Parse(STData[6]);
                         VerticalVelocity.origin = double.Parse(STData[7]);
-                        VerticalVelocity.differential = (VerticalVelocity.origin - VerticalVelocity.old)* filter_par+VerticalVelocity.old_differential * (1- filter_par);
-                        VerticalVelocity.old_differential = VerticalVelocity.differential;
-                        VerticalVelocity.old = VerticalVelocity.origin;
+                        VerticalVelocity.diff_filter(filter_par);
+                        //VerticalVelocity.differential = (VerticalVelocity.origin - VerticalVelocity.old)* filter_par+VerticalVelocity.old_differential * (1- filter_par);
+                        //VerticalVelocity.old_differential = VerticalVelocity.differential;
+                        //VerticalVelocity.old = VerticalVelocity.origin;
                         pitch = double.Parse(STData[8]);
                         bank = double.Parse(STData[9]);
                         yaw = double.Parse(STData[10]);
@@ -432,7 +445,9 @@ namespace WindowsFormsApp1
                         rRPM = double.Parse(STData[12]);
                         cam.x= double.Parse(STData[13]);
                         cam.z = double.Parse(STData[15]);
-                     
+                        AngularVelocity.x = double.Parse(STData[16]);
+                        AngularVelocity.y = double.Parse(STData[17]);
+                        AngularVelocity.z = double.Parse(STData[18]);
 
                     }
                 }
