@@ -25,7 +25,12 @@ namespace WindowsFormsApp1
             public double z;  
         }
 
-        XYZ VectorVelocity, body_VectorVelocity, old_body_VectorVelocity,cam, AngularVelocity;
+        XYZ VectorVelocity=new XYZ();
+        XYZ body_VectorVelocity = new XYZ();
+        XYZ old_body_VectorVelocity = new XYZ();
+        XYZ cam = new XYZ();
+        XYZ AngularVelocity = new XYZ();
+        
 
         class OD
         {
@@ -41,7 +46,8 @@ namespace WindowsFormsApp1
             }
         }
 
-        OD VerticalVelocity,TAS;
+        OD VerticalVelocity = new OD();
+        OD TAS= new OD();
 
 
         static Socket server_r;
@@ -57,7 +63,8 @@ namespace WindowsFormsApp1
 
         static int pic_size = 500;
 
-        FileStream data_file = new FileStream("data.txt", FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
+        //FileStream data_file = new FileStream("data.txt", FileMode.Create, FileAccess.ReadWrite, FileShare.ReadWrite);
+        StreamWriter sw = new StreamWriter("data.txt");
 
         KeyboardHook kh;
 
@@ -435,12 +442,16 @@ namespace WindowsFormsApp1
                         altRad = double.Parse(STData[6]);
                         VerticalVelocity.origin = double.Parse(STData[7]);
                         VerticalVelocity.diff_filter(filter_par);
-                        //VerticalVelocity.differential = (VerticalVelocity.origin - VerticalVelocity.old)* filter_par+VerticalVelocity.old_differential * (1- filter_par);
-                        //VerticalVelocity.old_differential = VerticalVelocity.differential;
-                        //VerticalVelocity.old = VerticalVelocity.origin;
+                       
+                        
+
                         pitch = double.Parse(STData[8]);
                         bank = double.Parse(STData[9]);
                         yaw = double.Parse(STData[10]);
+
+                        body_VectorVelocity.x = (VectorVelocity.x * Math.Cos(yaw) + VectorVelocity.z * Math.Sin(yaw));
+                        body_VectorVelocity.y = (-VectorVelocity.x * Math.Sin(yaw) + VectorVelocity.z * Math.Cos(yaw));
+                        
                         lRPM = double.Parse(STData[11]);
                         rRPM = double.Parse(STData[12]);
                         cam.x= double.Parse(STData[13]);
@@ -449,12 +460,15 @@ namespace WindowsFormsApp1
                         AngularVelocity.y = double.Parse(STData[17]);
                         AngularVelocity.z = double.Parse(STData[18]);
 
+                        sw.WriteLine(STData[0]+" "+Convert.ToString(body_VectorVelocity.x) + " " + Convert.ToString(body_VectorVelocity.y) + " " + STData[3] + " " + STData[8] + " " + STData[9] 
+                            + " " + STData[10] + " " + STData[16] + " " + STData[17] + " " + STData[18]);
                     }
                 }
             }
         }
         private void startup()
         {
+            sw.WriteLine("start");
             if (flag_blind == 0)
             {
                 //接受网络设置
@@ -814,6 +828,7 @@ namespace WindowsFormsApp1
         }
         private void timer1_Tick(object sender, EventArgs e)
         {
+
             p.Width = 2;
             dash_pen.Width = 3;
             g.Clear(Color.White);
@@ -929,7 +944,10 @@ namespace WindowsFormsApp1
                     pause();
                 }
             }
-            if (e.KeyData == (Keys.Q | Keys.Control)) { System.Environment.Exit(0); }//Ctrl+Q 关闭窗口 
+            if (e.KeyData == (Keys.Q | Keys.Control)) { 
+                sw.Close();
+                System.Environment.Exit(0); 
+            }//Ctrl+Q 关闭窗口 
 
 
         }
